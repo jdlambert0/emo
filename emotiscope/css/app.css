@@ -57,6 +57,44 @@ body {
     -moz-osx-font-smoothing: grayscale;
 }
 
+/* ==================== ACCESSIBILITY ==================== */
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Focus indicators for keyboard navigation */
+button:focus-visible,
+select:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+    outline: 3px solid var(--primary);
+    outline-offset: 2px;
+}
+
+/* Skip to main content link */
+.skip-link {
+    position: absolute;
+    top: -40px;
+    left: 0;
+    background: var(--primary);
+    color: white;
+    padding: 8px;
+    text-decoration: none;
+    z-index: 100;
+}
+
+.skip-link:focus {
+    top: 0;
+}
+
 /* ==================== APP CONTAINER ==================== */
 .app-container {
     max-width: 900px;
@@ -417,6 +455,17 @@ body {
     transform: none;
 }
 
+.send-btn.loading {
+    background: var(--primary-light);
+    animation: spin 1s linear infinite;
+    pointer-events: none;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
 /* Microphone Button */
 .mic-btn {
     width: 48px;
@@ -450,6 +499,14 @@ body {
     border-color: var(--danger);
     color: white;
     animation: pulse 1.5s infinite;
+}
+
+.mic-btn:disabled {
+    background: var(--bg-tertiary);
+    border-color: var(--border);
+    color: var(--text-tertiary);
+    cursor: not-allowed;
+    transform: none;
 }
 
 @keyframes pulse {

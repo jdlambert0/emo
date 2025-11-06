@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.openai.com https://api.anthropic.com; img-src 'self' data: https:; font-src 'self' data:;">
     <title>EmotiScope - Your Private Emotional Intelligence Companion</title>
     <meta name="description" content="Understand your emotions scientifically with the Webb Equation. Private, educational, and free. No login required.">
 
@@ -24,14 +25,17 @@
         }
 
         :root {
-            --primary: #6366f1;
-            --primary-dark: #4f46e5;
+            --primary: #7c3aed;
+            --primary-dark: #6d28d9;
+            --primary-light: #a78bfa;
             --secondary: #ec4899;
             --success: #10b981;
+            --teal: #14b8a6;
             --bg: #ffffff;
-            --bg-secondary: #f9fafb;
-            --text: #111827;
-            --text-secondary: #6b7280;
+            --bg-secondary: #faf5ff;
+            --bg-gradient: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+            --text: #1e293b;
+            --text-secondary: #64748b;
         }
 
         body {
@@ -44,8 +48,8 @@
         /* Hero Section */
         .hero {
             min-height: 100vh;
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-            color: white;
+            background: var(--bg-gradient);
+            color: var(--text);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -58,16 +62,19 @@
         .hero::before {
             content: '';
             position: absolute;
-            width: 150%;
-            height: 150%;
-            background: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
-            background-size: 50px 50px;
-            animation: float 20s infinite linear;
+            width: 100%;
+            height: 100%;
+            background-image:
+                radial-gradient(circle at 20% 50%, rgba(124, 58, 237, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(236, 72, 153, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 80%, rgba(20, 184, 166, 0.1) 0%, transparent 50%);
+            animation: float 15s ease-in-out infinite;
         }
 
         @keyframes float {
-            0% { transform: translate(0, 0); }
-            100% { transform: translate(50px, 50px); }
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            33% { transform: translate(30px, -30px) scale(1.1); }
+            66% { transform: translate(-20px, 20px) scale(0.9); }
         }
 
         .hero-content {
@@ -81,22 +88,28 @@
             font-weight: 800;
             margin-bottom: 1.5rem;
             line-height: 1.1;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
         .hero h1 .emoji {
             display: inline-block;
-            animation: pulse 2s infinite;
+            animation: gentlePulse 3s ease-in-out infinite;
+            -webkit-text-fill-color: initial;
         }
 
-        @keyframes pulse {
+        @keyframes gentlePulse {
             0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
+            50% { transform: scale(1.05); }
         }
 
         .hero p {
             font-size: 1.5rem;
             margin-bottom: 3rem;
-            opacity: 0.95;
+            color: var(--text);
+            font-weight: 500;
         }
 
         .cta-buttons {
@@ -119,23 +132,27 @@
         }
 
         .btn-primary {
-            background: white;
-            color: var(--primary);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            box-shadow: 0 4px 14px rgba(124, 58, 237, 0.3);
         }
 
         .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(124, 58, 237, 0.4);
         }
 
         .btn-secondary {
-            background: rgba(255,255,255,0.2);
-            color: white;
-            border: 2px solid white;
+            background: white;
+            color: var(--primary);
+            border: 2px solid var(--primary);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         }
 
         .btn-secondary:hover {
-            background: rgba(255,255,255,0.3);
+            background: var(--bg-secondary);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 14px rgba(0,0,0,0.1);
         }
 
         /* Features Section */
@@ -172,15 +189,17 @@
 
         .feature-card {
             background: white;
-            padding: 2rem;
-            border-radius: 1rem;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            transition: transform 0.3s, box-shadow 0.3s;
+            padding: 2.5rem;
+            border-radius: 1.25rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            transition: all 0.3s ease;
+            border: 1px solid rgba(124, 58, 237, 0.1);
         }
 
         .feature-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            transform: translateY(-8px);
+            box-shadow: 0 12px 28px rgba(124, 58, 237, 0.15);
+            border-color: rgba(124, 58, 237, 0.2);
         }
 
         .feature-icon {
@@ -345,8 +364,11 @@
                 <a href="app.html" class="btn btn-primary">🚀 Start Free Now</a>
                 <a href="#how-it-works" class="btn btn-secondary">📖 Learn How It Works</a>
             </div>
-            <p style="font-size: 0.875rem; margin-top: 2rem; opacity: 0.8;">
-                ✅ No login required  •  🔒 100% private  •  ⚡ Works instantly
+            <p style="font-size: 0.95rem; margin-top: 2.5rem; color: var(--text-secondary); font-weight: 500;">
+                ✅ No login required  •  🔒 100% private  •  ⚡ Works instantly  •  🌟 Science-backed
+            </p>
+            <p style="font-size: 0.875rem; margin-top: 1rem; color: var(--text-secondary); font-style: italic;">
+                Used by thousands to understand and master their emotional responses
             </p>
         </div>
     </section>

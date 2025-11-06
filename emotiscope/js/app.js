@@ -28,6 +28,52 @@ const AppState = {
     isListening: false
 };
 
+// ==================== SECURITY UTILITIES ====================
+function sanitizeHTML(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function validateInput(input, maxLength = 5000) {
+    if (typeof input !== 'string') {
+        throw new Error('Invalid input type');
+    }
+    if (input.length === 0) {
+        throw new Error('Input cannot be empty');
+    }
+    if (input.length > maxLength) {
+        throw new Error(`Input exceeds maximum length of ${maxLength} characters`);
+    }
+    // Check for suspicious patterns
+    const suspiciousPatterns = [/<script/i, /javascript:/i, /onerror=/i, /onclick=/i];
+    if (suspiciousPatterns.some(pattern => pattern.test(input))) {
+        throw new Error('Input contains potentially unsafe content');
+    }
+    return input.trim();
+}
+
+// Rate limiting for API calls
+const RateLimiter = {
+    lastCallTime: 0,
+    minInterval: 1000, // 1 second between calls
+
+    canMakeCall() {
+        const now = Date.now();
+        if (now - this.lastCallTime < this.minInterval) {
+            return false;
+        }
+        this.lastCallTime = now;
+        return true;
+    },
+
+    getWaitTime() {
+        const now = Date.now();
+        const timeSinceLastCall = now - this.lastCallTime;
+        return Math.max(0, this.minInterval - timeSinceLastCall);
+    }
+};
+
 // ==================== INITIALIZATION ====================
 document.addEventListener('DOMContentLoaded', () => {
     // Initialize MHH Engine
@@ -134,12 +180,11 @@ function clearAllData() {
 function switchMode(mode) {
     AppState.mode = mode;
 
-    // Update button states
+    // Update button states and ARIA attributes
     document.querySelectorAll('.mode-btn').forEach(btn => {
-        btn.classList.remove('active');
-        if (btn.dataset.mode === mode) {
-            btn.classList.add('active');
-        }
+        const isActive = btn.dataset.mode === mode;
+        btn.classList.toggle('active', isActive);
+        btn.setAttribute('aria-selected', isActive);
     });
 
     // Update descriptions
@@ -443,16 +488,39 @@ function handleKeyPress(event) {
 
 async function sendMessage() {
     const input = document.getElementById('messageInput');
-    const message = input.value.trim();
+    let message = input.value.trim();
 
     if (!message) return;
 
+    // Validate and sanitize input
+    try {
+        message = validateInput(message, 5000);
+    } catch (error) {
+        showNotification(error.message, 'error');
+        return;
+    }
+
     // Check if API key is set
     if (!AppState.apiKey && AppState.apiProvider !== 'local') {
-        alert('Please set your API key in Settings (⚙️) first.');
+        showNotification('Please set your API key in Settings (⚙️) first.', 'warning');
         openSettings();
         return;
     }
+
+    // Rate limiting
+    if (!RateLimiter.canMakeCall()) {
+        const waitTime = Math.ceil(RateLimiter.getWaitTime() / 1000);
+        showNotification(`Please wait ${waitTime} second(s) before sending another message.`, 'warning');
+        return;
+    }
+
+    // Disable send button and show loading state
+    const sendBtn = document.getElementById('sendBtn');
+    const micBtn = document.getElementById('micBtn');
+    sendBtn.disabled = true;
+    sendBtn.classList.add('loading');
+    micBtn.disabled = true;
+    input.disabled = true;
 
     // Clear input
     input.value = '';
@@ -502,8 +570,17 @@ async function sendMessage() {
         saveToLocalStorage();
 
     } catch (error) {
+        console.error('Error getting AI response:', error);
         hideTypingIndicator();
-        addMessageToUI('bot', `❌ Error: ${error.message}. Please check your API key in Settings.`);
+        const errorMsg = error.message || 'Unknown error occurred';
+        addMessageToUI('bot', `❌ Error: ${errorMsg}. Please check your API key and internet connection in Settings.`);
+    } finally {
+        // Re-enable send button and input
+        sendBtn.disabled = false;
+        sendBtn.classList.remove('loading');
+        micBtn.disabled = false;
+        input.disabled = false;
+        input.focus();
     }
 }
 
@@ -567,8 +644,11 @@ function addMessageToUI(role, content, emotions = null) {
 }
 
 function formatMessage(text) {
-    // Simple markdown-like formatting
-    let formatted = text
+    // Sanitize text first to prevent XSS
+    const sanitized = sanitizeHTML(text);
+
+    // Simple markdown-like formatting (safe because text is already sanitized)
+    let formatted = sanitized
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')  // Bold
         .replace(/\*(.*?)\*/g, '<em>$1</em>')               // Italic
         .replace(/\n/g, '</p><p>')                          // Paragraphs
@@ -693,65 +773,117 @@ function buildEnrichedPrompt(userMessage, emotions) {
 }
 
 async function callOpenAI(systemPrompt, userPrompt) {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${AppState.apiKey}`
-        },
-        body: JSON.stringify({
-            model: 'gpt-4',
-            messages: [
-                { role: 'system', content: systemPrompt },
-                ...AppState.conversationHistory.slice(-10).map(msg => ({
-                    role: msg.role === 'user' ? 'user' : 'assistant',
-                    content: msg.content
-                })),
-                { role: 'user', content: userPrompt }
-            ],
-            temperature: 0.7,
-            max_tokens: 800
-        })
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-    if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error?.message || 'OpenAI API error');
+    try {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${AppState.apiKey}`
+            },
+            body: JSON.stringify({
+                model: 'gpt-4',
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    ...AppState.conversationHistory.slice(-10).map(msg => ({
+                        role: msg.role === 'user' ? 'user' : 'assistant',
+                        content: msg.content
+                    })),
+                    { role: 'user', content: userPrompt }
+                ],
+                temperature: 0.7,
+                max_tokens: 800
+            }),
+            signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+            if (response.status === 401) {
+                throw new Error('Invalid API key. Please check your OpenAI API key in Settings.');
+            } else if (response.status === 429) {
+                throw new Error('Rate limit exceeded. Please wait a moment and try again.');
+            } else if (response.status >= 500) {
+                throw new Error('OpenAI service is temporarily unavailable. Please try again later.');
+            }
+
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error?.message || `API error (${response.status})`);
+        }
+
+        const data = await response.json();
+        if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+            throw new Error('Invalid response format from OpenAI');
+        }
+        return data.choices[0].message.content;
+
+    } catch (error) {
+        clearTimeout(timeoutId);
+        if (error.name === 'AbortError') {
+            throw new Error('Request timed out. Please check your internet connection and try again.');
+        }
+        throw error;
     }
-
-    const data = await response.json();
-    return data.choices[0].message.content;
 }
 
 async function callAnthropic(systemPrompt, userPrompt) {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': AppState.apiKey,
-            'anthropic-version': '2023-06-01'
-        },
-        body: JSON.stringify({
-            model: 'claude-3-5-sonnet-20241022',
-            max_tokens: 1024,
-            system: systemPrompt,
-            messages: [
-                ...AppState.conversationHistory.slice(-10).map(msg => ({
-                    role: msg.role === 'user' ? 'user' : 'assistant',
-                    content: msg.content
-                })),
-                { role: 'user', content: userPrompt }
-            ]
-        })
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-    if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error?.message || 'Anthropic API error');
+    try {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': AppState.apiKey,
+                'anthropic-version': '2023-06-01'
+            },
+            body: JSON.stringify({
+                model: 'claude-3-5-sonnet-20241022',
+                max_tokens: 1024,
+                system: systemPrompt,
+                messages: [
+                    ...AppState.conversationHistory.slice(-10).map(msg => ({
+                        role: msg.role === 'user' ? 'user' : 'assistant',
+                        content: msg.content
+                    })),
+                    { role: 'user', content: userPrompt }
+                ]
+            }),
+            signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+            if (response.status === 401) {
+                throw new Error('Invalid API key. Please check your Anthropic API key in Settings.');
+            } else if (response.status === 429) {
+                throw new Error('Rate limit exceeded. Please wait a moment and try again.');
+            } else if (response.status >= 500) {
+                throw new Error('Anthropic service is temporarily unavailable. Please try again later.');
+            }
+
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error?.message || `API error (${response.status})`);
+        }
+
+        const data = await response.json();
+        if (!data.content || !data.content[0] || !data.content[0].text) {
+            throw new Error('Invalid response format from Anthropic');
+        }
+        return data.content[0].text;
+
+    } catch (error) {
+        clearTimeout(timeoutId);
+        if (error.name === 'AbortError') {
+            throw new Error('Request timed out. Please check your internet connection and try again.');
+        }
+        throw error;
     }
-
-    const data = await response.json();
-    return data.content[0].text;
 }
 
 // ==================== SKILL TRACKING ====================

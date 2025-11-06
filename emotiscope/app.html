@@ -3,16 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MHH Emotional Intelligence - Private AI Chat</title>
-    <link rel="stylesheet" href="styles.css">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.openai.com https://api.anthropic.com; img-src 'self' data: https:; font-src 'self' data:;">
+    <title>EmotiScope - Your Private Emotional Intelligence Companion</title>
+    <link rel="stylesheet" href="css/app.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#6366f1">
 </head>
 <body>
     <!-- Settings Modal -->
-    <div id="settingsModal" class="modal">
+    <div id="settingsModal" class="modal" role="dialog" aria-labelledby="settingsTitle" aria-modal="true">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>⚙️ Settings</h2>
-                <button class="close-btn" onclick="closeSettings()">&times;</button>
+                <h2 id="settingsTitle">⚙️ Settings</h2>
+                <button class="close-btn" onclick="closeSettings()" aria-label="Close settings">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="setting-group">
@@ -75,18 +78,20 @@
         <!-- Header -->
         <header class="app-header">
             <div class="header-content">
-                <h1>🧠 MHH Emotional Intelligence</h1>
+                <h1>🧠 EmotiScope</h1>
                 <p class="tagline">Your Private AI Companion for Emotional Growth</p>
             </div>
-            <button class="settings-btn" onclick="openSettings()">⚙️</button>
+            <button class="settings-btn" onclick="openSettings()" aria-label="Open settings">⚙️</button>
         </header>
 
         <!-- Mode Selector -->
-        <div class="mode-selector">
-            <button class="mode-btn active" data-mode="learn" onclick="switchMode('learn')">
+        <div class="mode-selector" role="tablist" aria-label="Chat modes">
+            <button class="mode-btn active" data-mode="learn" onclick="switchMode('learn')"
+                    role="tab" aria-selected="true" aria-controls="learnDesc">
                 📚 Learn Emotional Intelligence
             </button>
-            <button class="mode-btn" data-mode="chat" onclick="switchMode('chat')">
+            <button class="mode-btn" data-mode="chat" onclick="switchMode('chat')"
+                    role="tab" aria-selected="false" aria-controls="chatDesc">
                 💬 Open Chat
             </button>
         </div>
@@ -131,12 +136,12 @@
 
         <!-- Chat Container -->
         <div class="chat-container" id="chatContainer">
-            <div class="chat-messages" id="chatMessages">
+            <div class="chat-messages" id="chatMessages" role="log" aria-live="polite" aria-atomic="false">
                 <!-- Welcome Message -->
                 <div class="message bot-message">
-                    <div class="message-avatar">🧠</div>
+                    <div class="message-avatar" aria-hidden="true">🧠</div>
                     <div class="message-content">
-                        <p>Welcome! I'm your MHH Emotional Intelligence companion.</p>
+                        <p>Welcome! I'm your EmotiScope Emotional Intelligence companion.</p>
                         <p>I can help you understand your emotions using the Webb Equation framework. Everything stays private on your device.</p>
                         <p><strong>To get started:</strong> Click ⚙️ above to enter your API key (OpenAI or Anthropic).</p>
                     </div>
@@ -145,17 +150,21 @@
 
             <!-- Input Area -->
             <div class="chat-input-container">
+                <label for="messageInput" class="visually-hidden">Type your message</label>
                 <textarea
                     id="messageInput"
                     placeholder="Type your message here..."
                     rows="1"
                     onkeydown="handleKeyPress(event)"
+                    aria-label="Message input"
                 ></textarea>
-                <button class="mic-btn" onclick="toggleVoiceInput()" id="micBtn" title="Click to speak">
+                <button class="mic-btn" onclick="toggleVoiceInput()" id="micBtn"
+                        title="Click to speak" aria-label="Voice input">
                     🎤
                 </button>
-                <button class="send-btn" onclick="sendMessage()" id="sendBtn">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <button class="send-btn" onclick="sendMessage()" id="sendBtn"
+                        aria-label="Send message">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                         <path d="M22 2L11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                         <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
@@ -165,7 +174,18 @@
     </div>
 
     <!-- Scripts -->
-    <script src="mhh-engine.js"></script>
-    <script src="app.js"></script>
+    <script src="js/mhh-engine.js"></script>
+    <script src="js/app.js"></script>
+
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('service-worker.js')
+                    .then(reg => console.log('Service Worker registered'))
+                    .catch(err => console.log('Service Worker registration failed'));
+            });
+        }
+    </script>
 </body>
 </html>
