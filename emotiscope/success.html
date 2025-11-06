@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Purchase Complete - EmotiScope</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .success-container {
+            max-width: 600px;
+            background: white;
+            padding: 3rem;
+            border-radius: 1.5rem;
+            box-shadow: 0 20px 60px rgba(124, 58, 237, 0.15);
+            text-align: center;
+        }
+
+        .success-icon {
+            font-size: 5rem;
+            margin-bottom: 1.5rem;
+            animation: scaleIn 0.5s ease;
+        }
+
+        @keyframes scaleIn {
+            0% { transform: scale(0); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        h1 {
+            font-size: 2rem;
+            color: #7c3aed;
+            margin-bottom: 1rem;
+        }
+
+        .license-key-section {
+            background: #f9fafb;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            margin: 2rem 0;
+            border: 2px dashed #7c3aed;
+        }
+
+        .license-key {
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #7c3aed;
+            letter-spacing: 2px;
+            margin: 1rem 0;
+            user-select: all;
+            word-break: break-all;
+        }
+
+        .copy-btn {
+            background: linear-gradient(135deg, #7c3aed, #6d28d9);
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 1rem;
+            transition: transform 0.2s;
+        }
+
+        .copy-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .copy-btn.copied {
+            background: #10b981;
+        }
+
+        .instructions {
+            text-align: left;
+            margin: 2rem 0;
+            padding: 1.5rem;
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            border-radius: 0.5rem;
+        }
+
+        .instructions h3 {
+            color: #92400e;
+            margin-bottom: 1rem;
+        }
+
+        .instructions ol {
+            margin-left: 1.5rem;
+            color: #78350f;
+        }
+
+        .instructions li {
+            margin: 0.5rem 0;
+        }
+
+        .cta-btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #7c3aed, #6d28d9);
+            color: white;
+            padding: 1rem 2.5rem;
+            border-radius: 0.75rem;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1.0625rem;
+            margin-top: 1.5rem;
+            transition: transform 0.2s;
+        }
+
+        .cta-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .email-notice {
+            font-size: 0.875rem;
+            color: #6b7280;
+            margin-top: 1.5rem;
+        }
+
+        .support-link {
+            color: #7c3aed;
+            text-decoration: none;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="success-container">
+        <div class="success-icon">🎉</div>
+        <h1>Welcome to <span id="tierName">Premium</span>!</h1>
+        <p style="font-size: 1.125rem; color: #64748b; margin-bottom: 2rem;">
+            Thank you for upgrading. Your emotional intelligence journey just leveled up!
+        </p>
+
+        <div class="license-key-section">
+            <p style="font-weight: 600; color: #1e293b; margin-bottom: 0.5rem;">Your License Key:</p>
+            <div class="license-key" id="licenseKey">PREMIUM-XXXX-XXXX-XXXX</div>
+            <button class="copy-btn" onclick="copyLicenseKey()">📋 Copy License Key</button>
+        </div>
+
+        <div class="instructions">
+            <h3>📌 How to Activate:</h3>
+            <ol>
+                <li>Open EmotiScope app</li>
+                <li>Click the ⚙️ Settings icon</li>
+                <li>Paste your license key</li>
+                <li>Click "Activate License"</li>
+                <li>Enjoy unlimited access! 🚀</li>
+            </ol>
+        </div>
+
+        <a href="app.html" class="cta-btn">Open EmotiScope App →</a>
+
+        <p class="email-notice">
+            ✉️ A copy of your license key has been sent to your email.<br>
+            Keep it safe—you'll need it to activate on other devices.
+        </p>
+
+        <p style="margin-top: 2rem; font-size: 0.875rem; color: #6b7280;">
+            Need help? Contact <a href="mailto:support@emotiscope.com" class="support-link">support@emotiscope.com</a>
+        </p>
+    </div>
+
+    <script>
+        // Get license key from URL parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const licenseKey = urlParams.get('key');
+        const tier = urlParams.get('tier') || 'premium';
+
+        if (licenseKey) {
+            document.getElementById('licenseKey').textContent = licenseKey;
+        }
+
+        document.getElementById('tierName').textContent = tier.charAt(0).toUpperCase() + tier.slice(1);
+
+        function copyLicenseKey() {
+            const keyElement = document.getElementById('licenseKey');
+            const key = keyElement.textContent;
+
+            navigator.clipboard.writeText(key).then(() => {
+                const btn = document.querySelector('.copy-btn');
+                btn.textContent = '✓ Copied!';
+                btn.classList.add('copied');
+
+                setTimeout(() => {
+                    btn.textContent = '📋 Copy License Key';
+                    btn.classList.remove('copied');
+                }, 2000);
+            });
+        }
+
+        // Auto-copy on page load
+        window.addEventListener('load', () => {
+            if (licenseKey) {
+                // Auto-copy after 1 second
+                setTimeout(() => {
+                    const keyElement = document.getElementById('licenseKey');
+                    navigator.clipboard.writeText(keyElement.textContent);
+                }, 1000);
+            }
+        });
+    </script>
+</body>
+</html>

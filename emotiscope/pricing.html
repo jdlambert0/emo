@@ -375,7 +375,21 @@
                     <li>100% private & local</li>
                 </ul>
 
-                <button class="cta-button" onclick="upgradeToPremium()">Upgrade to Premium</button>
+                <!-- Gumroad Button (Production) -->
+                <a href="https://gumroad.com/l/emotiscope-premium"
+                   class="cta-button gumroad-button"
+                   data-gumroad-single-product="true">
+                    Upgrade to Premium
+                </a>
+
+                <!-- Alternative: Stripe Button -->
+                <!-- <button class="cta-button" onclick="checkoutPremium()">Upgrade to Premium</button> -->
+
+                <!-- Demo/Test Mode -->
+                <button class="cta-button" onclick="testPremium()" style="display:none;" id="testPremiumBtn">
+                    🧪 Test Premium (Demo)
+                </button>
+
                 <p style="text-align: center; margin-top: 1rem; font-size: 0.875rem; color: var(--text-secondary);">
                     Or $79/year (save 34%)
                 </p>
@@ -398,7 +412,17 @@
                     <li>Quarterly strategy calls</li>
                 </ul>
 
-                <button class="cta-button secondary" onclick="upgradeToPro()">Upgrade to Pro</button>
+                <!-- Gumroad Button (Production) -->
+                <a href="https://gumroad.com/l/emotiscope-pro"
+                   class="cta-button secondary gumroad-button"
+                   data-gumroad-single-product="true">
+                    Upgrade to Pro
+                </a>
+
+                <!-- Demo/Test Mode -->
+                <button class="cta-button secondary" onclick="testPro()" style="display:none;" id="testProBtn">
+                    🧪 Test Pro (Demo)
+                </button>
                 <p style="text-align: center; margin-top: 1rem; font-size: 0.875rem; color: var(--text-secondary);">
                     Or $149/year (save 38%)
                 </p>
@@ -451,15 +475,83 @@
         </p>
     </footer>
 
+    <!-- Gumroad Overlay Script -->
+    <script src="https://gumroad.com/js/gumroad.js"></script>
+
+    <!-- Stripe.js (if using Stripe) -->
+    <!-- <script src="https://js.stripe.com/v3/"></script> -->
+
     <script>
-        // For demo purposes - in production, integrate with Stripe/Gumroad
-        function upgradeToPremium() {
-            alert('Premium upgrade coming soon!\n\nFor early access, email: hello@emotiscope.com\n\nYou can test the Premium features now by using the license key:\nPREMIUM-DEMO-TEST-KEY');
+        // Check if in test mode (local development)
+        const isTestMode = window.location.hostname === 'localhost' ||
+                          window.location.hostname === '127.0.0.1' ||
+                          window.location.search.includes('test=true');
+
+        if (isTestMode) {
+            // Show demo buttons instead
+            document.querySelectorAll('.gumroad-button').forEach(btn => btn.style.display = 'none');
+            document.getElementById('testPremiumBtn').style.display = 'block';
+            document.getElementById('testProBtn').style.display = 'block';
         }
 
-        function upgradeToPro() {
-            alert('Pro upgrade coming soon!\n\nFor early access, email: hello@emotiscope.com\n\nYou can test the Pro features now by using the license key:\nPRO-DEMO-TEST-KEY');
+        // Demo/Test functions
+        function testPremium() {
+            const key = 'PREMIUM-DEMO-TEST-KEY';
+            // Redirect to success page with demo key
+            window.location.href = `success.html?key=${key}&tier=premium`;
         }
+
+        function testPro() {
+            const key = 'PRO-DEMO-TEST-KEY';
+            window.location.href = `success.html?key=${key}&tier=pro`;
+        }
+
+        // Stripe Checkout (if using Stripe instead of Gumroad)
+        /*
+        const stripe = Stripe('pk_live_YOUR_PUBLISHABLE_KEY');
+
+        async function checkoutPremium() {
+            const response = await fetch('/api/create-checkout-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    priceId: 'price_premium_monthly',
+                    tier: 'premium'
+                })
+            });
+
+            const session = await response.json();
+
+            const result = await stripe.redirectToCheckout({
+                sessionId: session.id
+            });
+
+            if (result.error) {
+                alert(result.error.message);
+            }
+        }
+
+        async function checkoutPro() {
+            const response = await fetch('/api/create-checkout-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    priceId: 'price_pro_monthly',
+                    tier: 'pro'
+                })
+            });
+
+            const session = await response.json();
+
+            const result = await stripe.redirectToCheckout({
+                sessionId: session.id
+            });
+
+            if (result.error) {
+                alert(result.error.message);
+            }
+        }
+        */
 
         // Smooth scroll for hash links
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
