@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MHH Emotional Intelligence - Private AI Chat</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>⚙️ Settings</h2>
+                <button class="close-btn" onclick="closeSettings()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="setting-group">
+                    <label for="aiProvider">AI Provider</label>
+                    <select id="aiProvider" onchange="updateAPIKeyLabel()">
+                        <option value="openai">OpenAI (GPT-4)</option>
+                        <option value="anthropic">Anthropic (Claude)</option>
+                        <option value="local">Local AI (Browser-based - Coming Soon)</option>
+                    </select>
+                </div>
+
+                <div class="setting-group">
+                    <label for="apiKey" id="apiKeyLabel">API Key</label>
+                    <input type="password" id="apiKey" placeholder="sk-...">
+                    <small class="help-text">🔒 Stored locally on your device only. Never sent to our servers.</small>
+                </div>
+
+                <div class="setting-group">
+                    <label>
+                        <input type="checkbox" id="ttsEnabled" checked>
+                        Enable Text-to-Speech
+                    </label>
+                </div>
+
+                <div class="setting-group">
+                    <label>
+                        <input type="checkbox" id="showEmotionalAnalysis" checked>
+                        Show Emotional Analysis
+                    </label>
+                </div>
+
+                <div class="setting-group">
+                    <label for="voiceSelect">Voice</label>
+                    <select id="voiceSelect"></select>
+                </div>
+
+                <div class="privacy-notice">
+                    <h3>🔐 Privacy Guarantee</h3>
+                    <p>✓ All data stored locally on your device</p>
+                    <p>✓ No account or login required</p>
+                    <p>✓ No tracking or analytics</p>
+                    <p>✓ API key never leaves your device</p>
+                    <p>✓ Conversations stay private</p>
+                </div>
+
+                <button class="danger-btn" onclick="clearAllData()">🗑️ Clear All Local Data</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App Container -->
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <h1>🧠 MHH Emotional Intelligence</h1>
+                <p class="tagline">Your Private AI Companion for Emotional Growth</p>
+            </div>
+            <button class="settings-btn" onclick="openSettings()">⚙️</button>
+        </header>
+
+        <!-- Mode Selector -->
+        <div class="mode-selector">
+            <button class="mode-btn active" data-mode="learn" onclick="switchMode('learn')">
+                📚 Learn Emotional Intelligence
+            </button>
+            <button class="mode-btn" data-mode="chat" onclick="switchMode('chat')">
+                💬 Open Chat
+            </button>
+        </div>
+
+        <!-- Mode Descriptions -->
+        <div class="mode-description">
+            <div id="learnDesc" class="desc-content active">
+                <p>🎓 <strong>Learn Mode:</strong> I'll teach you the Webb Equation framework and help you master emotional intelligence through guided conversations.</p>
+            </div>
+            <div id="chatDesc" class="desc-content">
+                <p>💭 <strong>Open Chat:</strong> Talk freely about anything. I'll provide emotionally intelligent responses based on the MHH framework.</p>
+            </div>
+        </div>
+
+        <!-- Skill Progress (Learn Mode Only) -->
+        <div id="skillProgress" class="skill-progress">
+            <div class="skill-header">
+                <h3>Your Progress</h3>
+                <span id="overallLevel" class="level-badge">Novice</span>
+            </div>
+            <div class="skill-bars">
+                <div class="skill-item">
+                    <span>Emotional Vocabulary</span>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="vocabProgress" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="skill-item">
+                    <span>Self-Analysis</span>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="analysisProgress" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="skill-item">
+                    <span>Webb Equation Understanding</span>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="webbProgress" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Container -->
+        <div class="chat-container" id="chatContainer">
+            <div class="chat-messages" id="chatMessages">
+                <!-- Welcome Message -->
+                <div class="message bot-message">
+                    <div class="message-avatar">🧠</div>
+                    <div class="message-content">
+                        <p>Welcome! I'm your MHH Emotional Intelligence companion.</p>
+                        <p>I can help you understand your emotions using the Webb Equation framework. Everything stays private on your device.</p>
+                        <p><strong>To get started:</strong> Click ⚙️ above to enter your API key (OpenAI or Anthropic).</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="chat-input-container">
+                <textarea
+                    id="messageInput"
+                    placeholder="Type your message here..."
+                    rows="1"
+                    onkeydown="handleKeyPress(event)"
+                ></textarea>
+                <button class="send-btn" onclick="sendMessage()" id="sendBtn">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                        <path d="M22 2L11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="mhh-engine.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
