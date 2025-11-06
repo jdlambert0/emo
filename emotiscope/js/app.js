@@ -25,7 +25,229 @@ const AppState = {
     mhhEngine: null,
     currentSpeech: null,
     recognition: null,
-    isListening: false
+    isListening: false,
+    license: {
+        tier: 'free', // 'free', 'premium', 'pro'
+        key: null,
+        validUntil: null
+    }
+};
+
+// ==================== LICENSE MANAGEMENT ====================
+const LicenseManager = {
+    TIERS: {
+        free: {
+            name: 'Free',
+            messagesPerMonth: 20,
+            features: {
+                learnMode: true,
+                chatMode: true,
+                basicAnalytics: true,
+                historyExport: false,
+                advancedAnalytics: false,
+                whiteLabel: false
+            }
+        },
+        premium: {
+            name: 'Premium',
+            price: 9.99,
+            messagesPerMonth: Infinity,
+            features: {
+                learnMode: true,
+                chatMode: true,
+                basicAnalytics: true,
+                historyExport: true,
+                advancedAnalytics: true,
+                whiteLabel: false
+            }
+        },
+        pro: {
+            name: 'Pro',
+            price: 19.99,
+            messagesPerMonth: Infinity,
+            features: {
+                learnMode: true,
+                chatMode: true,
+                basicAnalytics: true,
+                historyExport: true,
+                advancedAnalytics: true,
+                whiteLabel: true,
+                clientTracking: true,
+                prioritySupport: true
+            }
+        }
+    },
+
+    init() {
+        this.loadLicense();
+        this.loadMessageCount();
+        this.resetCountIfNewMonth();
+    },
+
+    loadLicense() {
+        try {
+            const savedLicense = localStorage.getItem('emotiscope_license');
+            if (savedLicense) {
+                const license = JSON.parse(savedLicense);
+                AppState.license = license;
+            }
+        } catch (error) {
+            console.error('Error loading license:', error);
+        }
+    },
+
+    saveLicense() {
+        try {
+            localStorage.setItem('emotiscope_license', JSON.stringify(AppState.license));
+        } catch (error) {
+            console.error('Error saving license:', error);
+        }
+    },
+
+    loadMessageCount() {
+        try {
+            const saved = localStorage.getItem('emotiscope_message_count');
+            if (saved) {
+                const data = JSON.parse(saved);
+                this.messageCount = data.count || 0;
+                this.monthStart = data.monthStart || new Date().toISOString();
+            } else {
+                this.messageCount = 0;
+                this.monthStart = new Date().toISOString();
+            }
+        } catch (error) {
+            this.messageCount = 0;
+            this.monthStart = new Date().toISOString();
+        }
+    },
+
+    saveMessageCount() {
+        try {
+            localStorage.setItem('emotiscope_message_count', JSON.stringify({
+                count: this.messageCount,
+                monthStart: this.monthStart
+            }));
+        } catch (error) {
+            console.error('Error saving message count:', error);
+        }
+    },
+
+    resetCountIfNewMonth() {
+        const now = new Date();
+        const monthStart = new Date(this.monthStart);
+
+        // Check if we're in a new month
+        if (now.getMonth() !== monthStart.getMonth() || now.getFullYear() !== monthStart.getFullYear()) {
+            this.messageCount = 0;
+            this.monthStart = now.toISOString();
+            this.saveMessageCount();
+        }
+    },
+
+    getCurrentTier() {
+        return this.TIERS[AppState.license.tier] || this.TIERS.free;
+    },
+
+    canSendMessage() {
+        const tier = this.getCurrentTier();
+
+        // Premium and Pro have unlimited messages
+        if (AppState.license.tier !== 'free') {
+            return { allowed: true };
+        }
+
+        // Free tier check
+        if (this.messageCount >= tier.messagesPerMonth) {
+            return {
+                allowed: false,
+                reason: 'monthly_limit',
+                limit: tier.messagesPerMonth,
+                used: this.messageCount
+            };
+        }
+
+        return { allowed: true };
+    },
+
+    incrementMessageCount() {
+        this.messageCount++;
+        this.saveMessageCount();
+    },
+
+    getMessagesRemaining() {
+        const tier = this.getCurrentTier();
+        if (AppState.license.tier !== 'free') {
+            return Infinity;
+        }
+        return Math.max(0, tier.messagesPerMonth - this.messageCount);
+    },
+
+    getUsagePercentage() {
+        const tier = this.getCurrentTier();
+        if (AppState.license.tier !== 'free') {
+            return 0;
+        }
+        return Math.min(100, (this.messageCount / tier.messagesPerMonth) * 100);
+    },
+
+    hasFeature(featureName) {
+        const tier = this.getCurrentTier();
+        return tier.features[featureName] || false;
+    },
+
+    // Simple license key validation (format: TIER-XXXX-XXXX-XXXX)
+    validateLicenseKey(key) {
+        if (!key || typeof key !== 'string') {
+            return { valid: false, error: 'Invalid license key format' };
+        }
+
+        const parts = key.toUpperCase().split('-');
+
+        if (parts.length !== 4) {
+            return { valid: false, error: 'Invalid license key format' };
+        }
+
+        const tierPrefix = parts[0];
+
+        if (tierPrefix === 'PREMIUM' || tierPrefix === 'PRO') {
+            // In a real implementation, you'd validate against a server
+            // For now, we'll accept any properly formatted key for demo
+            return {
+                valid: true,
+                tier: tierPrefix.toLowerCase(),
+                validUntil: null // null = lifetime
+            };
+        }
+
+        return { valid: false, error: 'Invalid license key' };
+    },
+
+    activateLicense(key) {
+        const validation = this.validateLicenseKey(key);
+
+        if (!validation.valid) {
+            return { success: false, error: validation.error };
+        }
+
+        AppState.license = {
+            tier: validation.tier,
+            key: key,
+            validUntil: validation.validUntil
+        };
+
+        this.saveLicense();
+
+        return { success: true, tier: validation.tier };
+    },
+
+    deactivateLicense() {
+        AppState.license = {
+            tier: 'free',
+            key: null,
+            validUntil: null
+        };
+        this.saveLicense();
+    }
 };
 
 // ==================== SECURITY UTILITIES ====================
@@ -76,6 +298,9 @@ const RateLimiter = {
 
 // ==================== INITIALIZATION ====================
 document.addEventListener('DOMContentLoaded', () => {
+    // Initialize License Manager
+    LicenseManager.init();
+
     // Initialize MHH Engine
     AppState.mhhEngine = new MHHEngine();
 
@@ -87,6 +312,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize speech recognition
     initializeSpeechRecognition();
+
+    // Update license UI
+    updateLicenseUI();
 
     // Adjust textarea height on input
     const messageInput = document.getElementById('messageInput');
@@ -500,6 +728,13 @@ async function sendMessage() {
         return;
     }
 
+    // Check license limits
+    const canSend = LicenseManager.canSendMessage();
+    if (!canSend.allowed) {
+        showUpgradeModal(canSend);
+        return;
+    }
+
     // Check if API key is set
     if (!AppState.apiKey && AppState.apiProvider !== 'local') {
         showNotification('Please set your API key in Settings (⚙️) first.', 'warning');
@@ -560,6 +795,10 @@ async function sendMessage() {
             emotions: emotions,
             timestamp: new Date().toISOString()
         });
+
+        // Increment message count
+        LicenseManager.incrementMessageCount();
+        updateLicenseUI();
 
         // Update skill progress (if in learn mode)
         if (AppState.mode === 'learn') {
@@ -952,6 +1191,147 @@ function displayConversationHistory() {
     });
 }
 
+// ==================== LICENSE UI ====================
+function updateLicenseUI() {
+    const tier = LicenseManager.getCurrentTier();
+    const remaining = LicenseManager.getMessagesRemaining();
+    const percentage = LicenseManager.getUsagePercentage();
+
+    // Update header badge
+    let headerBadge = document.getElementById('licenseBadge');
+    if (!headerBadge) {
+        headerBadge = document.createElement('div');
+        headerBadge.id = 'licenseBadge';
+        headerBadge.className = 'license-badge';
+        const headerContent = document.querySelector('.header-content');
+        if (headerContent) {
+            headerContent.appendChild(headerBadge);
+        }
+    }
+
+    if (AppState.license.tier === 'free') {
+        headerBadge.innerHTML = `
+            <span class="tier-name">Free</span>
+            <span class="tier-usage">${remaining}/20 messages left</span>
+        `;
+        headerBadge.className = 'license-badge free-tier';
+
+        // Show warning at 80% usage
+        if (percentage >= 80) {
+            headerBadge.classList.add('warning');
+        }
+    } else {
+        headerBadge.innerHTML = `
+            <span class="tier-name">${tier.name}</span>
+            <span class="tier-usage">✓ Unlimited</span>
+        `;
+        headerBadge.className = `license-badge ${AppState.license.tier}-tier`;
+    }
+}
+
+function showUpgradeModal(limitInfo) {
+    // Create modal if it doesn't exist
+    let modal = document.getElementById('upgradeModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'upgradeModal';
+        modal.className = 'modal upgrade-modal';
+        modal.innerHTML = `
+            <div class="modal-content upgrade-content">
+                <button class="close-btn" onclick="closeUpgradeModal()" aria-label="Close">&times;</button>
+
+                <div class="upgrade-hero">
+                    <div class="upgrade-icon">🚀</div>
+                    <h2>You've Reached Your Monthly Limit</h2>
+                    <p>You've used all ${limitInfo.limit} free messages this month. Upgrade to continue your emotional intelligence journey!</p>
+                </div>
+
+                <div class="pricing-tiers">
+                    <div class="pricing-card">
+                        <div class="tier-header">
+                            <h3>Free</h3>
+                            <div class="tier-price">$0<span>/month</span></div>
+                        </div>
+                        <ul class="tier-features">
+                            <li>✓ 20 messages/month</li>
+                            <li>✓ Learn Mode</li>
+                            <li>✓ Chat Mode</li>
+                            <li>✓ Basic analytics</li>
+                            <li>✗ History export</li>
+                            <li>✗ Advanced analytics</li>
+                        </ul>
+                        <div class="tier-current">Current Plan</div>
+                    </div>
+
+                    <div class="pricing-card featured">
+                        <div class="tier-badge">MOST POPULAR</div>
+                        <div class="tier-header">
+                            <h3>Premium</h3>
+                            <div class="tier-price">$9.99<span>/month</span></div>
+                        </div>
+                        <ul class="tier-features">
+                            <li>✓ Unlimited messages</li>
+                            <li>✓ Learn Mode</li>
+                            <li>✓ Chat Mode</li>
+                            <li>✓ Basic analytics</li>
+                            <li>✓ History export</li>
+                            <li>✓ Advanced analytics</li>
+                        </ul>
+                        <a href="pricing.html" class="tier-cta">Upgrade to Premium</a>
+                    </div>
+
+                    <div class="pricing-card">
+                        <div class="tier-header">
+                            <h3>Pro</h3>
+                            <div class="tier-price">$19.99<span>/month</span></div>
+                        </div>
+                        <ul class="tier-features">
+                            <li>✓ Everything in Premium</li>
+                            <li>✓ White-label</li>
+                            <li>✓ Client tracking</li>
+                            <li>✓ Priority support</li>
+                            <li>✓ For therapists/coaches</li>
+                        </ul>
+                        <a href="pricing.html" class="tier-cta secondary">Upgrade to Pro</a>
+                    </div>
+                </div>
+
+                <div class="upgrade-footer">
+                    <p>💳 No commitment • Cancel anytime • 30-day money-back guarantee</p>
+                    <button class="link-btn" onclick="showLicenseActivation()">Already have a license key?</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    modal.classList.add('active');
+}
+
+function closeUpgradeModal() {
+    const modal = document.getElementById('upgradeModal');
+    if (modal) {
+        modal.classList.remove('active');
+    }
+}
+
+function showLicenseActivation() {
+    closeUpgradeModal();
+
+    const key = prompt('Enter your license key:\n\nFormat: PREMIUM-XXXX-XXXX-XXXX or PRO-XXXX-XXXX-XXXX');
+
+    if (!key) return;
+
+    const result = LicenseManager.activateLicense(key);
+
+    if (result.success) {
+        showNotification(`🎉 License activated! You're now on the ${result.tier.toUpperCase()} tier.`, 'success');
+        updateLicenseUI();
+    } else {
+        showNotification(`❌ ${result.error}`, 'error');
+    }
+}
+
 // ==================== EXPORT FUNCTIONS TO GLOBAL SCOPE ====================
 window.switchMode = switchMode;
 window.openSettings = openSettings;
@@ -961,3 +1341,5 @@ window.clearAllData = clearAllData;
 window.sendMessage = sendMessage;
 window.handleKeyPress = handleKeyPress;
 window.toggleVoiceInput = toggleVoiceInput;
+window.closeUpgradeModal = closeUpgradeModal;
+window.showLicenseActivation = showLicenseActivation;
