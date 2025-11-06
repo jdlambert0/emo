@@ -1,0 +1,55 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background Circle -->
+  <circle cx="256" cy="256" r="256" fill="#6366f1"/>
+
+  <!-- Brain Emoji Style Icon -->
+  <g transform="translate(106, 106)">
+    <!-- Main brain shape -->
+    <path d="M 150 50 Q 180 30, 200 50 Q 220 30, 250 50 Q 270 70, 270 100 Q 280 130, 270 160 Q 280 190, 270 220 Q 260 250, 230 260 Q 200 270, 170 260 Q 140 250, 130 220 Q 120 190, 130 160 Q 120 130, 130 100 Q 130 70, 150 50 Z"
+          fill="#ffc0cb"
+          stroke="#ff69b4"
+          stroke-width="3"/>
+
+    <!-- Left hemisphere details -->
+    <path d="M 140 100 Q 145 120, 150 140 Q 155 160, 150 180 Q 145 200, 140 220"
+          fill="none"
+          stroke="#ff69b4"
+          stroke-width="2.5"
+          opacity="0.7"/>
+
+    <!-- Right hemisphere details -->
+    <path d="M 260 100 Q 255 120, 250 140 Q 245 160, 250 180 Q 255 200, 260 220"
+          fill="none"
+          stroke="#ff69b4"
+          stroke-width="2.5"
+          opacity="0.7"/>
+
+    <!-- Center line -->
+    <path d="M 200 60 Q 200 100, 200 140 Q 200 180, 200 220 Q 200 240, 200 255"
+          fill="none"
+          stroke="#ff69b4"
+          stroke-width="2"
+          opacity="0.6"/>
+
+    <!-- Frontal lobe curves -->
+    <circle cx="170" cy="90" r="15" fill="#ffb6c1" opacity="0.6"/>
+    <circle cx="230" cy="90" r="15" fill="#ffb6c1" opacity="0.6"/>
+
+    <!-- Temporal lobe curves -->
+    <circle cx="150" cy="150" r="18" fill="#ffb6c1" opacity="0.6"/>
+    <circle cx="250" cy="150" r="18" fill="#ffb6c1" opacity="0.6"/>
+
+    <!-- Occipital lobe -->
+    <circle cx="200" cy="230" r="20" fill="#ffb6c1" opacity="0.6"/>
+
+    <!-- Additional brain texture -->
+    <path d="M 160 120 Q 170 125, 180 120" fill="none" stroke="#ff69b4" stroke-width="2" opacity="0.5"/>
+    <path d="M 220 120 Q 230 125, 240 120" fill="none" stroke="#ff69b4" stroke-width="2" opacity="0.5"/>
+    <path d="M 160 170 Q 170 175, 180 170" fill="none" stroke="#ff69b4" stroke-width="2" opacity="0.5"/>
+    <path d="M 220 170 Q 230 175, 240 170" fill="none" stroke="#ff69b4" stroke-width="2" opacity="0.5"/>
+  </g>
+
+  <!-- Text (Optional) -->
+  <text x="256" y="440" font-family="Arial, sans-serif" font-size="48" font-weight="bold"
+        text-anchor="middle" fill="white" opacity="0.9">EmotiScope</text>
+</svg>
