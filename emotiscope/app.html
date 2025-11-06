@@ -45,7 +45,14 @@
                 </div>
 
                 <div class="setting-group">
-                    <label for="voiceSelect">Voice</label>
+                    <label>
+                        <input type="checkbox" id="voiceInputEnabled" checked>
+                        Enable Voice Input (🎤 Microphone)
+                    </label>
+                </div>
+
+                <div class="setting-group">
+                    <label for="voiceSelect">Voice for Text-to-Speech</label>
                     <select id="voiceSelect"></select>
                 </div>
 
@@ -144,6 +151,9 @@
                     rows="1"
                     onkeydown="handleKeyPress(event)"
                 ></textarea>
+                <button class="mic-btn" onclick="toggleVoiceInput()" id="micBtn" title="Click to speak">
+                    🎤
+                </button>
                 <button class="send-btn" onclick="sendMessage()" id="sendBtn">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                         <path d="M22 2L11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>

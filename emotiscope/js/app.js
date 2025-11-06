@@ -18,10 +18,14 @@ const AppState = {
     settings: {
         ttsEnabled: true,
         showEmotionalAnalysis: true,
-        voice: null
+        voice: null,
+        voiceInputEnabled: true,
+        voiceInputLanguage: 'en-US'
     },
     mhhEngine: null,
-    currentSpeech: null
+    currentSpeech: null,
+    recognition: null,
+    isListening: false
 };
 
 // ==================== INITIALIZATION ====================
@@ -34,6 +38,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize text-to-speech voices
     initializeTTS();
+
+    // Initialize speech recognition
+    initializeSpeechRecognition();
 
     // Adjust textarea height on input
     const messageInput = document.getElementById('messageInput');
@@ -168,6 +175,12 @@ function closeSettings() {
     AppState.settings.ttsEnabled = document.getElementById('ttsEnabled').checked;
     AppState.settings.showEmotionalAnalysis = document.getElementById('showEmotionalAnalysis').checked;
 
+    // Voice input settings
+    const voiceInputCheckbox = document.getElementById('voiceInputEnabled');
+    if (voiceInputCheckbox) {
+        AppState.settings.voiceInputEnabled = voiceInputCheckbox.checked;
+    }
+
     const voiceSelect = document.getElementById('voiceSelect');
     if (voiceSelect.value) {
         AppState.settings.voice = voiceSelect.value;
@@ -259,6 +272,165 @@ function speakText(text, button) {
 
     AppState.currentSpeech = utterance;
     speechSynthesis.speak(utterance);
+}
+
+// ==================== SPEECH RECOGNITION (VOICE INPUT) ====================
+function initializeSpeechRecognition() {
+    // Check browser support
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+        console.warn('Speech recognition not supported in this browser');
+        // Hide microphone button if not supported
+        const micBtn = document.getElementById('micBtn');
+        if (micBtn) {
+            micBtn.style.display = 'none';
+        }
+        return;
+    }
+
+    // Create recognition instance
+    AppState.recognition = new SpeechRecognition();
+    AppState.recognition.continuous = false; // Stop after one sentence
+    AppState.recognition.interimResults = true; // Show interim results
+    AppState.recognition.lang = AppState.settings.voiceInputLanguage || 'en-US';
+
+    // Event: Speech recognition starts
+    AppState.recognition.onstart = () => {
+        AppState.isListening = true;
+        const micBtn = document.getElementById('micBtn');
+        if (micBtn) {
+            micBtn.classList.add('listening');
+            micBtn.innerHTML = '🎙️';
+            micBtn.title = 'Listening... (click to stop)';
+        }
+    };
+
+    // Event: Speech recognition result
+    AppState.recognition.onresult = (event) => {
+        let interimTranscript = '';
+        let finalTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+                finalTranscript += transcript + ' ';
+            } else {
+                interimTranscript += transcript;
+            }
+        }
+
+        // Update input field with transcript
+        const messageInput = document.getElementById('messageInput');
+        if (finalTranscript) {
+            messageInput.value = finalTranscript.trim();
+            // Automatically send if we have final transcript
+            setTimeout(() => {
+                if (messageInput.value.trim()) {
+                    sendMessage();
+                }
+            }, 500);
+        } else {
+            // Show interim results
+            messageInput.placeholder = interimTranscript || 'Listening...';
+        }
+    };
+
+    // Event: Speech recognition ends
+    AppState.recognition.onend = () => {
+        AppState.isListening = false;
+        const micBtn = document.getElementById('micBtn');
+        if (micBtn) {
+            micBtn.classList.remove('listening');
+            micBtn.innerHTML = '🎤';
+            micBtn.title = 'Click to speak';
+        }
+        const messageInput = document.getElementById('messageInput');
+        messageInput.placeholder = 'Type your message here...';
+    };
+
+    // Event: Speech recognition error
+    AppState.recognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        AppState.isListening = false;
+
+        const micBtn = document.getElementById('micBtn');
+        if (micBtn) {
+            micBtn.classList.remove('listening');
+            micBtn.innerHTML = '🎤';
+        }
+
+        const messageInput = document.getElementById('messageInput');
+        messageInput.placeholder = 'Type your message here...';
+
+        // Show user-friendly error messages
+        if (event.error === 'no-speech') {
+            showNotification('No speech detected. Please try again.', 'warning');
+        } else if (event.error === 'audio-capture') {
+            showNotification('Microphone not found. Please check permissions.', 'error');
+        } else if (event.error === 'not-allowed') {
+            showNotification('Microphone permission denied. Please enable in browser settings.', 'error');
+        } else {
+            showNotification(`Speech recognition error: ${event.error}`, 'error');
+        }
+    };
+}
+
+function toggleVoiceInput() {
+    if (!AppState.recognition) {
+        showNotification('Speech recognition not supported in this browser. Try Chrome or Edge.', 'error');
+        return;
+    }
+
+    if (!AppState.settings.voiceInputEnabled) {
+        showNotification('Voice input is disabled. Enable it in Settings.', 'warning');
+        return;
+    }
+
+    if (AppState.isListening) {
+        // Stop listening
+        AppState.recognition.stop();
+    } else {
+        // Start listening
+        try {
+            AppState.recognition.start();
+        } catch (error) {
+            console.error('Failed to start speech recognition:', error);
+            showNotification('Failed to start microphone. Please try again.', 'error');
+        }
+    }
+}
+
+function showNotification(message, type = 'info') {
+    // Simple notification system
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.textContent = message;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 1rem 1.5rem;
+        background: ${type === 'error' ? '#ef4444' : type === 'warning' ? '#f59e0b' : '#6366f1'};
+        color: white;
+        border-radius: 0.5rem;
+        box-shadow: 0 10px 15px rgba(0,0,0,0.3);
+        z-index: 10000;
+        animation: slideIn 0.3s ease;
+        max-width: 300px;
+    `;
+
+    document.body.appendChild(notification);
+
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    }, 3000);
 }
 
 // ==================== MESSAGE HANDLING ====================
@@ -656,3 +828,4 @@ window.updateAPIKeyLabel = updateAPIKeyLabel;
 window.clearAllData = clearAllData;
 window.sendMessage = sendMessage;
 window.handleKeyPress = handleKeyPress;
+window.toggleVoiceInput = toggleVoiceInput;
