@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  emotiscope:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: emotiscope
+    ports:
+      - "80:80"
+    restart: unless-stopped
+    environment:
+      - NGINX_HOST=localhost
+      - NGINX_PORT=80
+    labels:
+      - "com.emotiscope.description=EmotiScope - Private Emotional Intelligence Companion"
+      - "com.emotiscope.version=1.0.0"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+# For HTTPS (optional - requires SSL certificates)
+  emotiscope-https:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: emotiscope-https
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./ssl:/etc/nginx/ssl:ro
+      - ./nginx-https.conf:/etc/nginx/conf.d/default.conf:ro
+    restart: unless-stopped
+    profiles:
+      - https
