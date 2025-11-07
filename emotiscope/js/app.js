@@ -12,6 +12,24 @@ const CONFIG = {
     MAX_CONCURRENT_NOTIFICATIONS: 3
 };
 
+// ==================== STORAGE AVAILABILITY CHECK ====================
+function isLocalStorageAvailable() {
+    try {
+        const test = '__localStorage_test__';
+        localStorage.setItem(test, test);
+        localStorage.removeItem(test);
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+// Check localStorage availability
+const STORAGE_AVAILABLE = isLocalStorageAvailable();
+if (!STORAGE_AVAILABLE) {
+    console.warn('⚠️ localStorage is not available. Data will not persist between sessions.');
+}
+
 // ==================== STATE MANAGEMENT ====================
 const AppState = {
     mode: 'learn', // 'learn' or 'chat'
@@ -135,6 +153,8 @@ const LicenseManager = {
     },
 
     loadLicense() {
+        if (!STORAGE_AVAILABLE) return;
+
         try {
             const savedLicense = localStorage.getItem('emotiscope_license');
             if (savedLicense) {
@@ -149,6 +169,8 @@ const LicenseManager = {
     },
 
     saveLicense() {
+        if (!STORAGE_AVAILABLE) return;
+
         try {
             localStorage.setItem('emotiscope_license', JSON.stringify(AppState.license));
         } catch (error) {
@@ -157,6 +179,8 @@ const LicenseManager = {
     },
 
     loadMessageCount() {
+        if (!STORAGE_AVAILABLE) return;
+
         try {
             const saved = localStorage.getItem('emotiscope_message_count');
             if (saved) {
@@ -174,6 +198,8 @@ const LicenseManager = {
     },
 
     saveMessageCount() {
+        if (!STORAGE_AVAILABLE) return;
+
         try {
             localStorage.setItem('emotiscope_message_count', JSON.stringify({
                 count: this.messageCount,
@@ -354,7 +380,20 @@ document.addEventListener('DOMContentLoaded', () => {
     LicenseManager.init();
 
     // Initialize Enhanced MHH Engine (world-class emotional intelligence)
-    AppState.mhhEngine = new MHHEngineEnhanced();
+    try {
+        AppState.mhhEngine = new MHHEngineEnhanced();
+        console.log('✅ MHH Engine initialized successfully');
+    } catch (error) {
+        console.error('❌ Failed to initialize MHH Engine:', error);
+        showNotification('Warning: Emotional intelligence engine failed to load. Basic functionality will be limited.', 'error');
+        // Create a minimal fallback engine
+        AppState.mhhEngine = {
+            analyzeText: () => ({ emotions: [], text: '' }),
+            calculateAllEmotions: () => [],
+            buildSystemPrompt: () => 'You are a helpful AI assistant.',
+            EMOTION_GROUPS: {}
+        };
+    }
 
     // Load saved data from localStorage
     loadFromLocalStorage();
@@ -386,6 +425,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ==================== LOCAL STORAGE ====================
 function loadFromLocalStorage() {
+    if (!STORAGE_AVAILABLE) {
+        console.log('Skipping localStorage load (not available)');
+        return;
+    }
+
     try {
         // Load API settings
         const savedProvider = localStorage.getItem('mhh_api_provider');
@@ -456,6 +500,11 @@ function loadFromLocalStorage() {
 }
 
 function saveToLocalStorage() {
+    if (!STORAGE_AVAILABLE) {
+        // Silently skip if storage not available
+        return;
+    }
+
     try {
         localStorage.setItem('mhh_api_provider', AppState.apiProvider);
         localStorage.setItem('mhh_api_key', AppState.apiKey);
@@ -466,13 +515,41 @@ function saveToLocalStorage() {
         localStorage.setItem('mhh_settings', JSON.stringify(AppState.settings));
     } catch (error) {
         console.error('Error saving to localStorage:', error);
+
+        // Handle quota exceeded errors
+        if (error.name === 'QuotaExceededError' || error.code === 22) {
+            // Try to free up space by trimming conversation history
+            console.log('localStorage quota exceeded, trimming history...');
+            if (AppState.conversationHistory.length > 20) {
+                AppState.conversationHistory = AppState.conversationHistory.slice(-20);
+                try {
+                    localStorage.setItem('mhh_conversation_history', JSON.stringify(AppState.conversationHistory));
+                    showNotification('Storage limit reached. Older conversations were trimmed.', 'warning');
+                } catch (retryError) {
+                    console.error('Failed to save even after trimming:', retryError);
+                    showNotification('Storage full. Consider exporting your data and clearing old conversations.', 'error');
+                }
+            }
+        } else if (error.message && error.message.includes('localStorage')) {
+            showNotification('Unable to save data. Please check browser settings allow local storage.', 'warning');
+        }
     }
 }
 
 function clearAllData() {
+    if (!STORAGE_AVAILABLE) {
+        showNotification('localStorage is not available in this browser', 'warning');
+        return;
+    }
+
     if (confirm('Are you sure? This will delete all your conversations and progress. This cannot be undone.')) {
-        localStorage.clear();
-        location.reload();
+        try {
+            localStorage.clear();
+            location.reload();
+        } catch (error) {
+            console.error('Error clearing localStorage:', error);
+            showNotification('Failed to clear data. Please try again.', 'error');
+        }
     }
 }
 
@@ -750,6 +827,12 @@ function toggleVoiceInput() {
 }
 
 function showNotification(message, type = 'info') {
+    // Check if body is ready
+    if (!document.body) {
+        console.warn('Cannot show notification: document.body not ready');
+        return;
+    }
+
     // Simple notification system
     const notification = document.createElement('div');
     notification.className = `notification notification-${type}`;
@@ -791,6 +874,12 @@ function handleKeyPress(event) {
 
 async function sendMessage() {
     const input = document.getElementById('messageInput');
+
+    if (!input) {
+        console.error('Message input element not found');
+        return;
+    }
+
     let message = input.value.trim();
 
     if (!message) return;
@@ -827,9 +916,13 @@ async function sendMessage() {
     // Disable send button and show loading state
     const sendBtn = document.getElementById('sendBtn');
     const micBtn = document.getElementById('micBtn');
-    sendBtn.disabled = true;
-    sendBtn.classList.add('loading');
-    micBtn.disabled = true;
+    if (sendBtn) {
+        sendBtn.disabled = true;
+        sendBtn.classList.add('loading');
+    }
+    if (micBtn) {
+        micBtn.disabled = true;
+    }
     input.disabled = true;
 
     // Clear input
@@ -896,9 +989,13 @@ async function sendMessage() {
         addMessageToUI('bot', `❌ Error: ${errorMsg}. Please check your API key and internet connection in Settings.`);
     } finally {
         // Re-enable send button and input
-        sendBtn.disabled = false;
-        sendBtn.classList.remove('loading');
-        micBtn.disabled = false;
+        if (sendBtn) {
+            sendBtn.disabled = false;
+            sendBtn.classList.remove('loading');
+        }
+        if (micBtn) {
+            micBtn.disabled = false;
+        }
         input.disabled = false;
         input.focus();
     }
@@ -906,6 +1003,11 @@ async function sendMessage() {
 
 function addMessageToUI(role, content, emotions = null) {
     const messagesContainer = document.getElementById('chatMessages');
+
+    if (!messagesContainer) {
+        console.error('Cannot add message: chat messages container not found');
+        return;
+    }
 
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${role}-message`;
@@ -979,6 +1081,11 @@ function formatMessage(text) {
 
 function showTypingIndicator() {
     const messagesContainer = document.getElementById('chatMessages');
+
+    if (!messagesContainer) {
+        console.warn('Cannot show typing indicator: messages container not found');
+        return;
+    }
 
     const typingDiv = document.createElement('div');
     typingDiv.className = 'message bot-message';
@@ -1225,6 +1332,11 @@ function updateSkillProgress() {
 function displayConversationHistory() {
     const messagesContainer = document.getElementById('chatMessages');
 
+    if (!messagesContainer) {
+        console.warn('Chat messages container not found, skipping history display');
+        return;
+    }
+
     // Keep only the welcome message, clear the rest
     const welcomeMessage = messagesContainer.querySelector('.bot-message');
     messagesContainer.innerHTML = '';
@@ -1257,7 +1369,17 @@ function updateLicenseUI() {
         const headerContent = document.querySelector('.header-content');
         if (headerContent) {
             headerContent.appendChild(headerBadge);
+        } else {
+            // Can't add badge if header doesn't exist yet
+            console.warn('Header content not found, skipping license badge');
+            return;
         }
+    }
+
+    // Safety check: only update if badge exists in DOM
+    if (!headerBadge || !headerBadge.parentNode) {
+        console.warn('License badge not in DOM, skipping update');
+        return;
     }
 
     if (AppState.license.tier === 'free') {
