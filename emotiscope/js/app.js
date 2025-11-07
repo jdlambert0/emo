@@ -3,6 +3,15 @@
  * Privacy-first: All data stored locally, no tracking, no login
  */
 
+// ==================== CONFIGURATION ====================
+const CONFIG = {
+    MAX_CONVERSATION_HISTORY: 100,
+    MAX_MESSAGE_LENGTH: 5000,
+    API_TIMEOUT: 30000,
+    RATE_LIMIT_INTERVAL: 1000,
+    MAX_CONCURRENT_NOTIFICATIONS: 3
+};
+
 // ==================== STATE MANAGEMENT ====================
 const AppState = {
     mode: 'learn', // 'learn' or 'chat'
@@ -32,6 +41,47 @@ const AppState = {
         validUntil: null
     }
 };
+
+// ==================== UTILITY FUNCTIONS ====================
+/**
+ * Safely get DOM element with null checking
+ * @param {string} id - Element ID
+ * @returns {HTMLElement|null}
+ */
+function safeGetElement(id) {
+    const element = document.getElementById(id);
+    if (!element) {
+        console.warn(`⚠️ Element '${id}' not found in DOM`);
+    }
+    return element;
+}
+
+/**
+ * Safely parse JSON with fallback
+ * @param {string} jsonString - JSON string to parse
+ * @param {any} defaultValue - Default if parse fails
+ * @returns {any}
+ */
+function safeJSONParse(jsonString, defaultValue = null) {
+    try {
+        const parsed = JSON.parse(jsonString);
+        return (parsed !== null && typeof parsed === 'object') ? parsed : defaultValue;
+    } catch (error) {
+        console.error('JSON parse error:', error.message);
+        return defaultValue;
+    }
+}
+
+/**
+ * Validate object structure
+ * @param {any} obj - Object to validate
+ * @param {Array<string>} requiredFields - Required field names
+ * @returns {boolean}
+ */
+function validateObject(obj, requiredFields) {
+    if (!obj || typeof obj !== 'object') return false;
+    return requiredFields.every(field => field in obj);
+}
 
 // ==================== LICENSE MANAGEMENT ====================
 const LicenseManager = {
@@ -88,8 +138,10 @@ const LicenseManager = {
         try {
             const savedLicense = localStorage.getItem('emotiscope_license');
             if (savedLicense) {
-                const license = JSON.parse(savedLicense);
-                AppState.license = license;
+                const license = safeJSONParse(savedLicense, null);
+                if (license && validateObject(license, ['tier'])) {
+                    AppState.license = license;
+                }
             }
         } catch (error) {
             console.error('Error loading license:', error);
@@ -108,7 +160,7 @@ const LicenseManager = {
         try {
             const saved = localStorage.getItem('emotiscope_message_count');
             if (saved) {
-                const data = JSON.parse(saved);
+                const data = safeJSONParse(saved, {});
                 this.messageCount = data.count || 0;
                 this.monthStart = data.monthStart || new Date().toISOString();
             } else {
@@ -301,8 +353,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize License Manager
     LicenseManager.init();
 
-    // Initialize MHH Engine
-    AppState.mhhEngine = new MHHEngine();
+    // Initialize Enhanced MHH Engine (world-class emotional intelligence)
+    AppState.mhhEngine = new MHHEngineEnhanced();
 
     // Load saved data from localStorage
     loadFromLocalStorage();
@@ -317,11 +369,13 @@ document.addEventListener('DOMContentLoaded', () => {
     updateLicenseUI();
 
     // Adjust textarea height on input
-    const messageInput = document.getElementById('messageInput');
-    messageInput.addEventListener('input', () => {
-        messageInput.style.height = 'auto';
-        messageInput.style.height = messageInput.scrollHeight + 'px';
-    });
+    const messageInput = safeGetElement('messageInput');
+    if (messageInput) {
+        messageInput.addEventListener('input', () => {
+            messageInput.style.height = 'auto';
+            messageInput.style.height = messageInput.scrollHeight + 'px';
+        });
+    }
 
     // Load conversation history
     displayConversationHistory();
@@ -340,12 +394,14 @@ function loadFromLocalStorage() {
 
         if (savedProvider) {
             AppState.apiProvider = savedProvider;
-            document.getElementById('aiProvider').value = savedProvider;
+            const aiProviderEl = safeGetElement('aiProvider');
+            if (aiProviderEl) aiProviderEl.value = savedProvider;
         }
 
         if (savedApiKey) {
             AppState.apiKey = savedApiKey;
-            document.getElementById('apiKey').value = savedApiKey;
+            const apiKeyEl = safeGetElement('apiKey');
+            if (apiKeyEl) apiKeyEl.value = savedApiKey;
         }
 
         if (savedMode) {
@@ -356,7 +412,17 @@ function loadFromLocalStorage() {
         // Load conversation history
         const savedHistory = localStorage.getItem('mhh_conversation_history');
         if (savedHistory) {
-            AppState.conversationHistory = JSON.parse(savedHistory);
+            const data = safeJSONParse(savedHistory, []);
+            if (Array.isArray(data)) {
+                // Validate each message has required fields
+                AppState.conversationHistory = data.filter(msg =>
+                    msg && typeof msg === 'object' &&
+                    msg.role && msg.content
+                ).slice(-CONFIG.MAX_CONVERSATION_HISTORY); // Also apply history limit
+            } else {
+                console.warn('Invalid conversation history, starting fresh');
+                AppState.conversationHistory = [];
+            }
         }
 
         // Load skill progress
@@ -367,15 +433,21 @@ function loadFromLocalStorage() {
 
         const savedSkillScores = localStorage.getItem('mhh_skill_scores');
         if (savedSkillScores) {
-            AppState.skillScores = JSON.parse(savedSkillScores);
+            const scores = safeJSONParse(savedSkillScores, null);
+            if (scores && validateObject(scores, ['vocabulary', 'analysis', 'webb'])) {
+                AppState.skillScores = scores;
+            }
         }
 
         // Load settings
         const savedSettings = localStorage.getItem('mhh_settings');
         if (savedSettings) {
-            AppState.settings = { ...AppState.settings, ...JSON.parse(savedSettings) };
-            document.getElementById('ttsEnabled').checked = AppState.settings.ttsEnabled;
-            document.getElementById('showEmotionalAnalysis').checked = AppState.settings.showEmotionalAnalysis;
+            const settings = safeJSONParse(savedSettings, {});
+            AppState.settings = { ...AppState.settings, ...settings };
+            const ttsEl = safeGetElement('ttsEnabled');
+            const analysisEl = safeGetElement('showEmotionalAnalysis');
+            if (ttsEl) ttsEl.checked = AppState.settings.ttsEnabled;
+            if (analysisEl) analysisEl.checked = AppState.settings.showEmotionalAnalysis;
         }
 
     } catch (error) {
@@ -419,16 +491,19 @@ function switchMode(mode) {
     document.querySelectorAll('.desc-content').forEach(desc => {
         desc.classList.remove('active');
     });
-    document.getElementById(mode === 'learn' ? 'learnDesc' : 'chatDesc').classList.add('active');
+    const descEl = safeGetElement(mode === 'learn' ? 'learnDesc' : 'chatDesc');
+    if (descEl) descEl.classList.add('active');
 
     // Show/hide skill progress
-    const skillProgress = document.getElementById('skillProgress');
-    if (mode === 'learn') {
-        skillProgress.classList.add('active');
-        skillProgress.style.display = 'block';
-    } else {
-        skillProgress.classList.remove('active');
-        skillProgress.style.display = 'none';
+    const skillProgress = safeGetElement('skillProgress');
+    if (skillProgress) {
+        if (mode === 'learn') {
+            skillProgress.classList.add('active');
+            skillProgress.style.display = 'block';
+        } else {
+            skillProgress.classList.remove('active');
+            skillProgress.style.display = 'none';
+        }
     }
 
     saveToLocalStorage();
@@ -771,6 +846,12 @@ async function sendMessage() {
         timestamp: new Date().toISOString()
     });
 
+    // FIX: Limit history to prevent memory crash
+    if (AppState.conversationHistory.length > CONFIG.MAX_CONVERSATION_HISTORY) {
+        console.log(`Trimming history to last ${CONFIG.MAX_CONVERSATION_HISTORY} messages`);
+        AppState.conversationHistory = AppState.conversationHistory.slice(-CONFIG.MAX_CONVERSATION_HISTORY);
+    }
+
     // Show typing indicator
     showTypingIndicator();
 
@@ -945,45 +1026,8 @@ async function getAIResponse(userMessage, emotions) {
 }
 
 function buildSystemPrompt() {
-    const basePrompt = `You are an emotionally intelligent AI assistant powered by the Mind Hacking Happiness (MHH) Webb Equation framework. You understand emotions mathematically and can help people develop emotional intelligence.
-
-The Webb Equation: EP ∆ P = ER (Expectation/Preference compared to Perception generates Emotional Reaction)
-
-Core principles:
-- All emotions follow mathematical rules based on attachments ({self} map items)
-- You can predict, explain, and help people process emotions
-- Be warm, empathetic, and educational
-
-Privacy: All conversations stay local on the user's device. No tracking.`;
-
-    if (AppState.mode === 'learn') {
-        return basePrompt + `\n\nMODE: Teaching Emotional Intelligence
-
-Your role: Teacher and coach for emotional intelligence.
-
-Based on user skill level (${AppState.userSkillLevel}):
-- Novice: Teach basics, use Socratic questioning, build vocabulary
-- Intermediate: Teach {self} maps, patterns, Webb Equation details
-- Advanced: Teach Theory of Mind, strategic communication
-- Mastery: Be a peer reflector, challenge thinking
-
-Always:
-1. Guide discovery, don't just tell answers
-2. Teach Webb Equation concepts as you go
-3. Build their emotional vocabulary
-4. Celebrate growth and insights
-5. Gradually reduce assistance as they improve`;
-    } else {
-        return basePrompt + `\n\nMODE: Open Conversation
-
-Your role: Emotionally intelligent conversation partner.
-
-- Respond naturally to any topic
-- Apply Webb Equation insights when relevant (but don't over-explain)
-- Show deep empathy based on emotional analysis
-- Be helpful, supportive, and authentic
-- You can discuss any topic, not just emotions`;
-    }
+    // Use the enhanced MHH engine's comprehensive system prompt builder
+    return AppState.mhhEngine.buildSystemPrompt(AppState.mode, AppState.userSkillLevel);
 }
 
 function buildEnrichedPrompt(userMessage, emotions) {
@@ -1164,10 +1208,17 @@ function updateSkillFromConversation(userMessage, aiResponse) {
 }
 
 function updateSkillProgress() {
-    document.getElementById('overallLevel').textContent = AppState.userSkillLevel.charAt(0).toUpperCase() + AppState.userSkillLevel.slice(1);
-    document.getElementById('vocabProgress').style.width = AppState.skillScores.vocabulary + '%';
-    document.getElementById('analysisProgress').style.width = AppState.skillScores.analysis + '%';
-    document.getElementById('webbProgress').style.width = AppState.skillScores.webb + '%';
+    const levelEl = safeGetElement('overallLevel');
+    const vocabEl = safeGetElement('vocabProgress');
+    const analysisEl = safeGetElement('analysisProgress');
+    const webbEl = safeGetElement('webbProgress');
+
+    if (levelEl) {
+        levelEl.textContent = AppState.userSkillLevel.charAt(0).toUpperCase() + AppState.userSkillLevel.slice(1);
+    }
+    if (vocabEl) vocabEl.style.width = AppState.skillScores.vocabulary + '%';
+    if (analysisEl) analysisEl.style.width = AppState.skillScores.analysis + '%';
+    if (webbEl) webbEl.style.width = AppState.skillScores.webb + '%';
 }
 
 // ==================== CONVERSATION HISTORY ====================
